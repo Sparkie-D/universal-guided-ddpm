@@ -1,9 +1,12 @@
 source activate diffusion
 
-tp=../Datasets/tmp3.csv
+tp=../Datasets/diffusion_data/synther2col/pretrain.csv
 vp=../Datasets/diffusion_data/synther2col/pretrain.csv
-ep=10000
+ep=100000
 
-python train_diffuser.py --train_path ${tp} --valid_path ${vp} --num_epoch ${ep} --log_name 2col_pretrain
+python train_diffuser.py --train_path ${tp} --valid_path ${vp} --num_epoch ${ep} --log_name 2col_pretrain_128step
 
-fewshot=../Datasets/diffusion_data/synther2col/synther3050/fewshot.csv
+# num=010
+# fewshot=../Datasets/diffusion_data/synther2col/synther${num}/fewshot.csv
+
+# python train_disc.py --train_path ${fewshot} --valid_path ${fewshot} --num_epoch ${ep} --log_name fewshot${num} --num_epoch 10000

@@ -33,5 +33,5 @@ class Trainer(object):
             self.train_epoch(train_loader)
                 
             if self.model.save_model_epoch > 0 and (epoch + 1) % self.model.save_model_epoch == 0:
-                with open(os.path.join(self.log_path, f'ddpm_{epoch}.pickle'), 'wb') as f:
+                with open(os.path.join(self.log_path, f'ddpm.pickle'), 'wb') as f:
                     pickle.dump(self.model, f)

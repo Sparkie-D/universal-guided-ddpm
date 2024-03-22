@@ -14,7 +14,13 @@ class DiffusionDataset:
         self.input_dim = data.shape[1]
         
     def __getitem__(self, i):
-        return self.normalizer.normalize(self.data.values[i])
+        if isinstance(self.data, pd.DataFrame):
+            return self.normalizer.normalize(self.data.values[i])
+        elif isinstance(self.data, np.ndarray):
+            return self.normalizer.normalize(self.data[i])
     
+    def set_normalizer(self, normalizer):
+        self.normalizer = normalizer
+        
     def __len__(self):
         return self.data.shape[0]

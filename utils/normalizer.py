@@ -31,6 +31,7 @@ class MinMaxNormalizer:
     def __init__(self, data):
         self.maxs = data.max(axis=0).values
         self.mins = data.min(axis=0).values
+        self.columns = data.columns
 
     def normalize(self, x):
         if torch.is_tensor(x):

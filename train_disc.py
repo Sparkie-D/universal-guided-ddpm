@@ -16,15 +16,19 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
     
+    with open('logs/ddpm/2col_pretrain/ddpm_9999.pickle', 'rb') as f:
+        diffuser=pickle.load(f)
+    with open('logs/ddpm/2col_pretrain/normalizer.pickle', 'rb') as f:
+        normalizer=pickle.load(f)
+    
     pos_data, columns=load_data(args.train_path)
+    pos_data.set_normalizer(normalizer)
     logger = SummaryWriter(args.log_path)
     device='cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu'
 
-    with open('logs/ddpm/2col_pretrain/ddpm_9999.pickle') as f:
-        diffuser=pickle.load(f)
-    neg_data_np = diffuser.generate_wo_guidance(n_samples=len(pos_data))
+    neg_data_np = normalizer.unnormalize(diffuser.generate_wo_guidance(n_samples=len(pos_data)))
     trainer = Trainer(
-        model=discriminator(input_dim=args.input_dim, 
+        model=discriminator(input_dim=pos_data.input_dim, 
                             hidden_dims=2,
                             device=device),
         pos_data=pos_data,
@@ -33,7 +37,6 @@ if __name__ == "__main__":
         device=device,
         args=args
     )
-
-    # generated = pd.DataFrame(data=train_data.normalizer.unnormalize(trainer.model.generate(n_samples=args.n_samples)), columns=columns)
-    # generated.to_csv(os.path.join(args.log_path, 'results', 'data', 'generated.csv'), index=None)
+    trainer.train(batch_size=args.batch_size,
+                  num_epoch=args.num_epoch)
     

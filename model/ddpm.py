@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 import os
+from tqdm import tqdm
 
 import sys
 curPath = os.path.abspath(os.path.dirname(__file__))
@@ -10,7 +11,7 @@ sys.path.append(curPath)
 
 from model.base import BaseAlgorithm
 from model.diffusion import MLPDiffusion
-# from config import GENDER_INDEX
+
 
 
 def cosine_beta_schedule(timesteps, s=0.008, dtype=torch.float32):
@@ -75,21 +76,22 @@ class DDPM(BaseAlgorithm):
         
         return {'diffusion loss': loss.item()}
     
-    def sample_one_step(self, x, t):
+    def sample_one_step(self, x, t, eps_theta=None):
         coeff = self.betas[t] / self.one_minus_alphas_bar_sqrt[t]
         diffuser_t = torch.LongTensor([t]).to(self.device)
-        eps_theta = self.diffuser(x, diffuser_t)
+        if eps_theta is None:
+            eps_theta = self.diffuser(x, diffuser_t)
         mean = (1 / (1 - self.betas[t]).sqrt()) * (x - (coeff * eps_theta))
         z = torch.randn_like(x)
         sigma_t = self.betas[t].sqrt()
         sample = mean + sigma_t * z
         return sample
 
-    def generate_wo_guidance(self, batch_num=400, extra_step=100, n_samples=0):            
-        x = np.random.randn(batch_num, self.input_dim)
+    def generate_wo_guidance(self, batch_size=400, extra_step=100, n_samples=0):            
+        x = np.random.randn(batch_size, self.input_dim)
 
-        for start in range(0, n_samples, batch_num):
-            end = min(start+batch_num, batch_num)
+        for start in range(0, n_samples, batch_size):
+            end = min(start+batch_size, batch_size)
             batch_x = torch.tensor(x[start:end], dtype=torch.float32).to(self.device)
             for i in range(self.n_steps-1, -extra_step, -1):
                 t = max(i, 0)
@@ -98,5 +100,45 @@ class DDPM(BaseAlgorithm):
         
         return x
 
-    def generate(self, batch_num):
-        return super().generate(batch_num)
+    def forward_guidance(self, disc_model, z0, zt):
+        preds = disc_model(z0)
+        loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(preds), preds)
+        guidance = torch.autograd.grad(loss, zt)
+        # print(guidance)
+        return guidance[0]
+        
+    def backward_guidance(self, disc_model, z0, m):
+        delta = torch.zeros_like(z0, requires_grad=True)
+        lr=1e-3
+        for _ in range(m):
+            output = disc_model(z0 + delta)
+            loss = nn.CrossEntropyLoss(reduction='sum')(output, torch.ones_like(output))
+            with torch.no_grad():
+                delta -= lr * torch.autograd.grad(loss, delta)[0]
+        
+        return delta
+    
+    
+    def universal_guided_sample_batch(self, batch_size=400, disc_model=None, m=10, n=10):
+        zt = torch.randn((batch_size, self.input_dim), dtype=torch.float32).to(self.device).requires_grad_(True)
+        for t in range(self.n_steps-1, 0, -1):
+            for _ in range(n):
+                eps_theta = self.diffuser(zt, torch.LongTensor([t]).to(self.device))
+                z0_hat = (zt - self.one_minus_alphas_bar_sqrt[t] * eps_theta) / self.alphas_bar_sqrt[t]
+                eps_theta_hat = eps_theta + 400*self.one_minus_alphas_bar_sqrt[t] * self.forward_guidance(disc_model, z0_hat, zt) # forward universal guidance
+                if m > 0:
+                    eps_theta_hat = eps_theta_hat - self.alphas_bar_sqrt[t] / self.one_minus_alphas_bar_sqrt[t] * self.backward_guidance(disc_model, z0_hat, m) # backward universal guidance
+                zt_1 = self.sample_one_step(zt, t, eps_theta=eps_theta_hat)
+                eps_hat = torch.randn_like(zt_1)
+                w = self.alphas_bar_sqrt[t] / self.alphas_bar_sqrt[t-1]
+                zt = w * zt_1 + torch.sqrt(1-torch.square(w)) * eps_hat
+            zt = zt_1 if n > 0 else self.sample_one_step(zt ,t)
+        return zt.detach().cpu().numpy()
+    
+    def universal_guided_sample(self, batch_size, disc_model, m, n, n_samples):
+        res = []
+        with tqdm(total=n_samples) as pbar:
+            for _ in range(0, n_samples, batch_size):
+                res.append(self.universal_guided_sample_batch(batch_size, disc_model, m, n))
+                pbar.update(batch_size)
+        return np.concatenate(res, 0)
