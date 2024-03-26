@@ -34,4 +34,5 @@ class discriminator(nn.Module):
         for fc in self.linear2:
             x = torch.tanh(fc(x).clip(-10, 10) if clip else fc(x))
         out = self.linear3(x)
-        return out
+        # return out
+        return torch.sigmoid(out) # [0,1]

@@ -15,7 +15,9 @@
                 "--train_path", "../Datasets/diffusion_data/synther2col/pretrain.csv",
                 "--valid_path", "../Datasets/diffusion_data/synther2col/pretrain.csv",
                 "--num_epoch", "100",
-                "--log_name", "debug"
+                "--log_name", "debug",
+                "--backward_step", "100", 
+                "--self_recurrent_step", "10",
             ]
         }
     ]

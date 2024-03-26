@@ -36,6 +36,8 @@ parser.add_argument('--log_name', type=str, default=datetime.now().strftime("%Y-
 parser.add_argument('--model_path', type = str, default = os.path.join('model'))
 parser.add_argument('--n_samples', type=int, default=5000)
 parser.add_argument('--id', type=str, default='010')
+parser.add_argument('--backward_step', '-b',type=int, default=0)
+parser.add_argument('--self_recurrent_step', '-r', type=int, default=1)
 
 args = parser.parse_args()
 args.features = []
