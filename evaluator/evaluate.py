@@ -67,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--id', type=str, default='010')
     parser.add_argument('--log_name', type=str, default=None)
     args = parser.parse_args()
-    args.log_path = os.path.join('logs/ddpm', args.log_name)
+    args.log_path = os.path.join('logs', args.log_name)
     
     raw_full = pd.read_csv(f'../Datasets/diffusion_data/synther2col/synther{args.id}/fewshot_all.csv', index_col=None)
     raw_fine = pd.read_csv(f'../Datasets/diffusion_data/synther2col/synther{args.id}/fewshot.csv', index_col=None)

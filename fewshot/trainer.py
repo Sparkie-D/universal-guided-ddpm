@@ -10,40 +10,44 @@ class Trainer(object):
                  model,
                  pos_data,
                  neg_data, 
+                 valid_data, 
                  logger,
                  args,
                  device,
                  ) -> None:
         self.pos_data = pos_data
         self.neg_data = neg_data
+        self.valid_data = valid_data
         self.logger = logger
         self.device = device
         self.model = model
         self.log_path = args.log_path
+        self.model_path = args.model_path
         self.save_model_epoch = args.save_model_epoch
         self.optim = torch.optim.AdamW(self.model.parameters(), lr=args.disc_lr)
         
     def train_epoch(self, neg_loader, pos_loader):
         total_loss = 0
+        n_batch = 0
         for i, (neg_data, pos_data) in enumerate(zip(neg_loader, pos_loader)):
             pos_data = pos_data.to(self.device)
             neg_data = neg_data.to(self.device)
             pos_pred = self.model(pos_data)
             neg_pred = self.model(neg_data)
             
-            ones = torch.ones_like(pos_pred)
-            zeros = torch.zeros_like(neg_pred)
-            loss = nn.CrossEntropyLoss(reduction='mean')(pos_pred, ones) + \
-                   nn.CrossEntropyLoss(reduction='mean')(neg_pred, zeros) + \
-                   self._gradient_penalty(neg_data, pos_data)
+            learner_loss = -torch.mean(torch.log(1 - torch.sigmoid(neg_pred)))
+            expert_loss = -torch.mean(torch.log(torch.sigmoid(pos_pred)))
+            
+            loss = learner_loss + expert_loss + self._gradient_penalty(neg_data, pos_data)
                 
             self.optim.zero_grad()
             loss.backward()
             self.optim.step()
 
             total_loss += loss.item()
+            n_batch += 1
             
-        return total_loss
+        return total_loss / n_batch
             
         
 
@@ -56,9 +60,28 @@ class Trainer(object):
             
             self.logger.add_scalar('train/loss', loss, epoch)
             
+            self.eval_epoch(batch_size, epoch)
+            
             if self.save_model_epoch > 0 and (epoch + 1) % self.save_model_epoch == 0:
-                with open(os.path.join(self.log_path, f'disc.pickle'), 'wb') as f:
+                with open(os.path.join(self.model_path, f'discriminator.pickle'), 'wb') as f:
                     pickle.dump(self.model, f)
+    
+    def eval_epoch(self, batch_size, epoch):
+        sampler = WeightedRandomSampler(weights=torch.ones(len(self.pos_data)), num_samples=batch_size, replacement=True)
+        pos_loader = torch.utils.data.DataLoader(self.valid_data, batch_size=batch_size, sampler=sampler)
+        neg_loader = torch.utils.data.DataLoader(self.neg_data, batch_size=batch_size, shuffle=True) 
+        pos_pred, neg_pred = [], []
+        
+        for i, (neg_data, pos_data) in enumerate(zip(neg_loader, pos_loader)):
+            pos_data = pos_data.to(self.device)
+            neg_data = neg_data.to(self.device)
+            pos_pred.append(self.model(pos_data).squeeze())
+            neg_pred.append(self.model(neg_data).squeeze())
+        
+        pos_pred = torch.sigmoid(torch.cat(pos_pred))
+        neg_pred = torch.sigmoid(torch.cat(neg_pred))
+        self.logger.add_histogram('eval/pos_prediction', pos_pred, epoch)
+        self.logger.add_histogram('eval/neg_prediction', neg_pred, epoch)            
 
    
     def _gradient_penalty(self, real_data, generated_data, LAMBDA=10):

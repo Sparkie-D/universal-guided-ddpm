@@ -74,7 +74,7 @@ class DDPM(BaseAlgorithm):
         torch.nn.utils.clip_grad_norm_(self.diffuser.parameters(), 1.)		
         self.diff_optimizer.step()
         
-        return {'diffusion loss': loss.item()}
+        return loss.item()
     
     def sample_one_step(self, x, t, eps_theta=None):
         coeff = self.betas[t] / self.one_minus_alphas_bar_sqrt[t]
@@ -101,9 +101,10 @@ class DDPM(BaseAlgorithm):
         return x
 
     def forward_guidance(self, disc_model, z0, zt):
-        preds = disc_model(z0).squeeze()
-        loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(preds), preds)
+        preds = disc_model(z0)
+        # loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(preds), preds)
         # loss = nn.MSELoss(reduction='sum')(torch.ones_like(preds), preds)
+        loss = -torch.sum(torch.log(torch.sigmoid(preds)))
         guidance = torch.autograd.grad(loss, zt)
         # print(guidance)
         return guidance[0]
@@ -112,22 +113,23 @@ class DDPM(BaseAlgorithm):
         delta = torch.zeros_like(z0, requires_grad=True)
         lr=1e-3
         for _ in range(m):
-            output = disc_model(z0 + delta).squeeze()
-            loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(output), output)
+            output = disc_model(z0 + delta)
+            # loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(output), output)
             # loss = nn.MSELoss(reduction='sum')(torch.ones_like(output), output)
+            loss = -torch.sum(torch.log(torch.sigmoid(output)))
             with torch.no_grad():
                 delta -= lr * torch.autograd.grad(loss, delta)[0]
         
         return delta
     
     
-    def universal_guided_sample_batch(self, batch_size=400, disc_model=None, backward_step=10, self_recurrent_step=10):
+    def universal_guided_sample_batch(self, batch_size=400, disc_model=None, forward_weight=1, backward_step=10, self_recurrent_step=10):
         zt = torch.randn((batch_size, self.input_dim), dtype=torch.float32).to(self.device).requires_grad_(True)
         for t in range(self.n_steps-1, 0, -1):
             for _ in range(self_recurrent_step):
                 eps_theta = self.diffuser(zt, torch.LongTensor([t]).to(self.device))
                 z0_hat = (zt - self.one_minus_alphas_bar_sqrt[t] * eps_theta) / self.alphas_bar_sqrt[t]
-                eps_theta_hat = eps_theta + self.one_minus_alphas_bar_sqrt[t] * self.forward_guidance(disc_model, z0_hat, zt) # forward universal guidance
+                eps_theta_hat = eps_theta + forward_weight * self.one_minus_alphas_bar_sqrt[t] * self.forward_guidance(disc_model, z0_hat, zt) # forward universal guidance
                 if backward_step > 0:
                     eps_theta_hat = eps_theta_hat - self.alphas_bar_sqrt[t] / self.one_minus_alphas_bar_sqrt[t] * self.backward_guidance(disc_model, z0_hat, backward_step) # backward universal guidance
                 zt_1 = self.sample_one_step(zt, t, eps_theta=eps_theta_hat)
@@ -138,10 +140,13 @@ class DDPM(BaseAlgorithm):
         return zt.detach().cpu().numpy()
     
     
-    def universal_guided_sample(self, batch_size, disc_model, backward_step, self_recurrent_step, n_samples):
+    def universal_guided_sample(self, batch_size, disc_model, forward_weight, backward_step, self_recurrent_step, n_samples):
         res = []
         with tqdm(total=n_samples) as pbar:
             for _ in range(0, n_samples, batch_size):
-                res.append(self.universal_guided_sample_batch(batch_size, disc_model, backward_step, self_recurrent_step))
+                res.append(self.universal_guided_sample_batch(batch_size, disc_model, forward_weight, backward_step, self_recurrent_step))
                 pbar.update(batch_size)
         return np.concatenate(res, 0)
+    
+    def set_logger(self, logger):
+        self.logger = logger

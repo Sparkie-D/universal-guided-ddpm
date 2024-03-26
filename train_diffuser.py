@@ -18,7 +18,7 @@ if __name__ == "__main__":
     
     train_data, columns=load_data(args.train_path)
     valid_data, _=load_data(args.valid_path)
-    with open(os.path.join(args.log_path, 'normalizer.pickle'), 'wb') as f:
+    with open(os.path.join(args.model_path, 'normalizer.pickle'), 'wb') as f:
         pickle.dump(train_data.normalizer, f)
     logger = SummaryWriter(args.log_path)
     device='cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu'
@@ -38,6 +38,4 @@ if __name__ == "__main__":
         args=args
     )
     trainer.train(num_epoch=args.num_epoch)
-    # generated = pd.DataFrame(data=train_data.normalizer.unnormalize(trainer.model.generate(n_samples=args.n_samples)), columns=columns)
-    # generated.to_csv(os.path.join(args.log_path, 'results', 'data', 'generated.csv'), index=None)
     
