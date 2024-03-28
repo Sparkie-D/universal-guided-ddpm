@@ -13,11 +13,11 @@ if __name__ == "__main__":
 
     device='cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu'
 
-    with open('logs/2col_pretrain/models/ddpm.pickle', 'rb') as f:
+    with open(f'logs/pretrain/column#{args.n_cols}/models/ddpm.pickle', 'rb') as f:
         diffuser=pickle.load(f)
-    with open('logs/2col_pretrain/models/normalizer.pickle', 'rb') as f:
+    with open(f'logs/pretrain/column#{args.n_cols}/models/normalizer.pickle', 'rb') as f:
         normalizer=pickle.load(f)    
-    with open(f'logs/fewshot{args.id}/models/discriminator.pickle', 'rb') as f:
+    with open(f'logs/fewshot/column#{args.n_cols}_id#{args.id}/models/discriminator.pickle', 'rb') as f:
         disc=pickle.load(f)
         
     gen_data = diffuser.universal_guided_sample(batch_size=args.batch_size, 

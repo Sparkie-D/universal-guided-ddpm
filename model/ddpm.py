@@ -102,8 +102,6 @@ class DDPM(BaseAlgorithm):
 
     def forward_guidance(self, disc_model, z0, zt):
         preds = disc_model(z0)
-        # loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(preds), preds)
-        # loss = nn.MSELoss(reduction='sum')(torch.ones_like(preds), preds)
         loss = -torch.sum(torch.log(torch.sigmoid(preds)))
         guidance = torch.autograd.grad(loss, zt)
         # print(guidance)
@@ -114,8 +112,6 @@ class DDPM(BaseAlgorithm):
         lr=1e-3
         for _ in range(m):
             output = disc_model(z0 + delta)
-            # loss = nn.CrossEntropyLoss(reduction='sum')(torch.ones_like(output), output)
-            # loss = nn.MSELoss(reduction='sum')(torch.ones_like(output), output)
             loss = -torch.sum(torch.log(torch.sigmoid(output)))
             with torch.no_grad():
                 delta -= lr * torch.autograd.grad(loss, delta)[0]

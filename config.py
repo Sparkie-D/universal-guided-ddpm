@@ -35,6 +35,7 @@ parser.add_argument('--id', type=str, default='010')
 parser.add_argument('--forward_weight', '-f', type=int, default=1.)
 parser.add_argument('--backward_step', '-b',type=int, default=0)
 parser.add_argument('--self_recurrent_step', '-r', type=int, default=1)
+parser.add_argument('--n_cols', type=str, default='all')
 
 args = parser.parse_args()
 args.log_interval = min(args.log_interval, args.num_epoch)

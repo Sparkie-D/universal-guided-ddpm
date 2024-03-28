@@ -38,8 +38,9 @@ class Trainer(object):
             learner_loss = -torch.mean(torch.log(1 - torch.sigmoid(neg_pred)))
             expert_loss = -torch.mean(torch.log(torch.sigmoid(pos_pred)))
             
-            loss = learner_loss + expert_loss + self._gradient_penalty(neg_data, pos_data)
-                
+            loss = learner_loss + expert_loss + self._gradient_penalty(neg_data, pos_data, LAMBDA=0)
+            # loss = learner_loss + expert_loss
+            
             self.optim.zero_grad()
             loss.backward()
             self.optim.step()
@@ -80,6 +81,7 @@ class Trainer(object):
         
         pos_pred = torch.sigmoid(torch.cat(pos_pred))
         neg_pred = torch.sigmoid(torch.cat(neg_pred))
+        # print(pos_pred, neg_pred)
         self.logger.add_histogram('eval/pos_prediction', pos_pred, epoch)
         self.logger.add_histogram('eval/neg_prediction', neg_pred, epoch)            
 

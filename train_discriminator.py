@@ -16,9 +16,9 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
     
-    with open('logs/2col_pretrain/models/ddpm.pickle', 'rb') as f:
+    with open(f'logs/pretrain/column#{args.n_cols}/models/ddpm.pickle', 'rb') as f:
         diffuser=pickle.load(f)
-    with open('logs/2col_pretrain/models/normalizer.pickle', 'rb') as f:
+    with open(f'logs/pretrain/column#{args.n_cols}/models/normalizer.pickle', 'rb') as f:
         normalizer=pickle.load(f)
     
     # with open('logs/fewshot010/models/discriminator.pickle', 'rb') as f:
