@@ -19,6 +19,7 @@ class Trainer(object):
         self.model = model
         self.log_path = args.log_path
         self.model_path = args.model_path
+        self.normalizer = self.train_data.normalizer
         
     def train_epoch(self, train_loader, epoch):
         total_loss = 0
@@ -26,12 +27,12 @@ class Trainer(object):
         for data in train_loader:
             data = data.to(self.device)
             n_batch += 1
-            total_loss += self.model.update(data)
+            total_loss += self.model.update(data, self.normalizer.cat_cols, self.normalizer.cat_dict)
         self.logger.add_scalar('train/diffusion loss', total_loss / n_batch, epoch)
         
 
     def train(self, batch_size=32, num_epoch=1000):  
-        train_loader = torch.utils.data.DataLoader(self.train_data, batch_size=batch_size, shuffle=True)             
+        train_loader = torch.utils.data.DataLoader(self.train_data, batch_size=batch_size, shuffle=True)
         for epoch in tqdm(range(num_epoch), desc='Training'):
             self.train_epoch(train_loader, epoch)
                 

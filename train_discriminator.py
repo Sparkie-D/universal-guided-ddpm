@@ -23,21 +23,25 @@ if __name__ == "__main__":
     
     # with open('logs/fewshot010/models/discriminator.pickle', 'rb') as f:
     #     model=pickle.load(f)
-    pos_data, columns=load_data(args.train_path)
+    pos_data, columns=load_data(args.train_path, cat_cols=args.cat_cols)
     pos_data.set_normalizer(normalizer)
-    valid_data, columns=load_data(args.valid_path)
+    valid_data, columns=load_data(args.valid_path, cat_cols=args.cat_cols)
     valid_data.set_normalizer(normalizer)
     logger = SummaryWriter(args.log_path)
     device='cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu'
 
-    neg_data_np = normalizer.unnormalize(diffuser.generate_wo_guidance(n_samples=10000))
+    gen_raw = diffuser.generate_wo_guidance(n_samples=10000)
+    neg_data_np = normalizer.unnormalize(x_num=gen_raw[:, :len(normalizer.num_cols)], 
+                                         x_cat=gen_raw[:, len(normalizer.num_cols):],
+                                         concat=True)
+    neg_data_df = pd.DataFrame(data=neg_data_np,columns=normalizer.num_cols+normalizer.cat_cols)
     trainer = Trainer(
         model=discriminator(input_dim=pos_data.input_dim, 
                             hidden_dims=4,
                             device=device),
         # model=model,
         pos_data=pos_data,
-        neg_data=DiffusionDataset(neg_data_np, pos_data.normalizer),
+        neg_data=DiffusionDataset(neg_data_df, pos_data.normalizer),
         valid_data=valid_data,
         logger=logger,
         device=device,

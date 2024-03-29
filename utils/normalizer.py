@@ -1,135 +1,115 @@
 import numpy as np
 import torch
 
-
-class GaussianNormalizer:
-    '''
-        normalizes to zero mean and unit variance
-    '''
-
-    def __init__(self, data):
-        self.means = self.data.mean(axis=0)
-        self.stds = self.data.std(axis=0) + 1e-5
-
-    def normalize(self, x):                 
-        if torch.is_tensor(x):
-            device = x.device
-            x = (x.cpu().numpy() - self.means) / self.stds
-            return torch.as_tensor(x, device=device, dtype=torch.float)
-        else:
-            return ((x - self.means) / self.stds).astype(np.float32)
-
-    def unnormalize(self, x):
-        return x * self.stds + self.means
-
-
 class MinMaxNormalizer:
     '''
         normalizes to zero mean and unit variance
     '''
 
-    def __init__(self, data):
-        self.maxs = data.max(axis=0).values
-        self.mins = data.min(axis=0).values
-        self.columns = data.columns
-
-    def normalize(self, x):
-        if torch.is_tensor(x):
-            device = x.device
-            x = (x.cpu().numpy() - self.mins) / (self.maxs - self.mins + 1e-5)
-            x = x * 2 - 1
-            return torch.as_tensor(x, device=device, dtype=torch.float32)
+    def __init__(self, data, cat_cols):
+        self.num_cols = [col for col in data.columns if col not in cat_cols]
+        self.cat_cols = cat_cols
+        self.cat_dict = {cat:np.unique(data[cat].values) for cat in self.cat_cols}    
+        self.cat_len = sum([len(self.cat_dict[cat]) for cat in cat_cols])
+        self.maxs = data[self.num_cols].max(axis=0).values
+        self.mins = data[self.num_cols].min(axis=0).values
+        self.normed_len = len(self.num_cols) + sum([len(self.cat_dict[col]) for col in self.cat_cols])
+    
+    def normalize(self, x_num, x_cat, concat=False):
+        # x_num
+        if torch.is_tensor(x_num):
+            device = x_num.device
+            x_num = (x_num.cpu().numpy() - self.mins) / (self.maxs - self.mins + 1e-5)
+            x_num = torch.as_tensor(x_num, device=device, dtype=torch.float32)
+            x_num = x_num * 2 - 1
+            
+            x_cat_ret = []
+            device = x_cat.device
+            for i, col in enumerate(self.cat_cols):
+                cur = x_cat[:, i].cpu().numpy().reshape(-1, 1)
+                cur = np.repeat(cur, axis=-1, repeats=len(self.cat_dict[col]))
+                x_cat_ret.append((cur == self.cat_dict[col]))
+                
+            x_cat = np.concatenate(x_cat_ret, axis=-1)
+            x_cat = torch.from_numpy(x_cat).to(device).astype(torch.float32)
+            
+            if concat:
+                return torch.cat([x_num, x_cat], dim=-1).astype(torch.float32)
+            else:
+                return x_num, x_cat
+            
+        elif isinstance(x_num, np.ndarray):
+            x_num =  (x_num - self.mins) / (self.maxs - self.mins + 1e-5)
+            x_num = x_num * 2 - 1
+            
+            x_cat_ret = []
+            for i, col in enumerate(self.cat_cols):
+                cur = x_cat[:, i].reshape(-1, 1)
+                cur = np.repeat(cur, axis=-1, repeats=len(self.cat_dict[col]))
+                cur = (cur == self.cat_dict[col]).astype(np.float32)
+                x_cat_ret.append(cur)
+                
+            x_cat = np.concatenate(x_cat_ret, axis=-1)
+            
+            if concat:
+                return np.concatenate([x_num, x_cat], axis=-1).astype(np.float32)
+            else:
+                return x_num, x_cat
         else:
-            x =  (x - self.mins) / (self.maxs - self.mins + 1e-5)
-            x = x * 2 - 1
-            return x.astype(np.float32)
+            raise NotImplementedError
 
-    def unnormalize(self, x):
-        x = x.clip(-1, 1)
-        x = (x + 1) / 2
-        if torch.is_tensor(x):
-            x = x.detach().cpu().numpy()
-        return x *  (self.maxs - self.mins + 1e-5) + self.mins
+    def unnormalize(self, 
+                    x_num, 
+                    x_cat, 
+                    concat=False) -> np.ndarray:
+        '''
+        unnormalize maps data into original space, which contains str type
+        '''
+        if isinstance(x_num, torch.Tensor):
+            x_num = x_num.detach().cpu().numpy()
+            x_cat = x_cat.detach().cpu().numpy()
+        x_num = x_num.clip(-1, 1)
+        x_num = (x_num + 1) / 2
+        x_num = x_num *  (self.maxs - self.mins + 1e-5) + self.mins
 
-
-class SimLogNormalizer:
-    '''
-        normalizes to zero mean and unit variance
-    '''
-
-    def __init__(self, data):
-        pass
-
-    def normalize(self, x):                 
-        if torch.is_tensor(x):
-            device = x.device
-            x = torch.sign(x) * torch.log(torch.abs(x) + 1)
-            return torch.as_tensor(x, device=device)
+        start = 0
+        cat_ret = []
+        for col in self.cat_cols:
+            cat_len = len(self.cat_dict[col])
+            idx = np.argmax(x_cat[:, start:start+cat_len], axis=-1)
+            cat_ret.append(self.cat_dict[col][idx].reshape(-1, 1))
+            start += cat_len
+        x_cat = np.concatenate(cat_ret, axis=-1)
+        if concat:
+            return np.concatenate([x_num, x_cat], axis=-1)
         else:
-            return np.sign(x) * np.log(np.abs(x) + 1)
-
-    def unnormalize(self, x):
-        if torch.is_tensor(x):
-            device = x.device
-            x = torch.sign(x) * (torch.exp(torch.abs(x)) - 1)
-            return torch.as_tensor(x, device=device)
-        else:
-            return np.sign(x) * (np.exp(np.abs(x)) - 1)
-
-
-class MinMaxSimLogNormalizer:
-    '''
-        normalizes to zero mean and unit variance
-    '''
-
-    def __init__(self, data):
-        simlog_data = np.sign(data.values) * np.log(np.abs(data.values) + 1)
-        self.maxs = simlog_data.max(axis=0)
-        self.mins = simlog_data.min(axis=0)
-
-    def normalize(self, x):                 
-        if torch.is_tensor(x):
-            device = x.device
-            x = torch.sign(x) * torch.log(torch.abs(x) + 1)
-            x = (x.cpu().numpy() - self.mins) / (self.maxs - self.mins)
-            x = x * 2 - 1
-            return torch.as_tensor(x, device=device)
-        else:
-            x = np.sign(x) * np.log(np.abs(x) + 1) 
-            x =  (x - self.mins) / (self.maxs - self.mins + 1e-5)
-            x = x * 2 - 1
-            return x
-
-    def unnormalize(self, x):
-        if torch.is_tensor(x):
-            device = x.device
-            x = (x + 1) / 2
-            x = x.cpu().numpy() * (self.maxs - self.mins + 1e-5) + self.mins
-            x = torch.as_tensor(x, device=device)
-            x = torch.sign(x) * (torch.exp(torch.abs(x)) - 1)
-            return x
-        else:
-            x = (x + 1) / 2
-            x = x * (self.maxs - self.mins + 1e-5) + self.mins
-            x = np.sign(x) * (np.exp(np.abs(x)) - 1)
-            return x
-        
-
-class DatasetNormalizer:
-    def __init__(self, normalizer_dict):
-
-        self.normalizers = normalizer_dict
-        self.keys = list(normalizer_dict.keys())
-
-    def __call__(self, *args, **kwargs):
-        return self.normalize(*args, **kwargs)
-
-    def normalize(self, x, key):
-        assert key in self.keys
-        return self.normalizers[key].normalize(x)
-
-    def unnormalize(self, x, key):
-        assert key in self.keys
-        return self.normalizers[key].unnormalize(x)
-
-
+            return x_num, x_cat 
+    
+    
+if __name__ == '__main__':
+    import pandas as pd
+    # data = pd.DataFrame({
+    #     'a':[0,0,1,1],
+    #     'aa':[1,2,2,0],
+    #     'aaa':['Amy', 'Bob', 'Cat', 'Cat'],
+    #     'aaaa':['ICLR', 'ICML', 'AAAI','ICLR'],
+    #     'b':[2,3,4,2.5],
+    #     'bb':[1,2,3,4]
+    # })
+    data = pd.DataFrame({
+        'a':['ICLR'],
+        'b':[2.5],
+        'bb':[4]
+    })
+    # print(data)
+    cat_cols = ['a']
+    num_cols = [col for col in data if col not in cat_cols]
+    print(data[num_cols+cat_cols])
+    
+    norm = MinMaxNormalizer(data, cat_cols=cat_cols)
+    x_num, x_cat = norm.normalize(data[num_cols].values, data[cat_cols].values)
+    # print(np.concatenate([x_num, x_cat], axis=-1))
+    # print(x_num)
+    
+    x_num, x_cat = torch.from_numpy(x_num), torch.from_numpy(x_cat)
+    print(norm.unnormalize(x_num, x_cat, concat=True))

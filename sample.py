@@ -26,15 +26,17 @@ if __name__ == "__main__":
                                                 backward_step=args.backward_step,
                                                 self_recurrent_step=args.self_recurrent_step, 
                                                 n_samples=args.n_samples)
-    generated = pd.DataFrame(data=normalizer.unnormalize(gen_data),
-                             columns=normalizer.columns)
+    gen_num = gen_data[:, :len(normalizer.num_cols)]
+    gen_cat = gen_data[:, len(normalizer.num_cols):]
+    generated = pd.DataFrame(data=normalizer.unnormalize(gen_num, gen_cat, concat=True),
+                             columns=normalizer.num_cols+normalizer.cat_cols)
 
     generated.to_csv(os.path.join(args.save_data_path, 'synthetic.csv'), index=None)
     
     if not os.path.exists(os.path.join(args.save_data_path, 'synthetic_wo_guidance.csv')):
-        gen_data = diffuser.generate_wo_guidance(batch_size=args.batch_size, 
-                                                n_samples=args.n_samples)
-        generated = pd.DataFrame(data=normalizer.unnormalize(gen_data),
-                                columns=normalizer.columns)
+        gen_num = gen_data[:, :len(normalizer.num_cols)]
+        gen_cat = gen_data[:, len(normalizer.num_cols):]
+        generated = pd.DataFrame(data=normalizer.unnormalize(gen_num, gen_cat, concat=True),
+                                columns=normalizer.num_cols+normalizer.cat_cols)
 
         generated.to_csv(os.path.join(args.save_data_path, 'synthetic_wo_guidance.csv'), index=None)

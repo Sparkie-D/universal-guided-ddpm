@@ -52,7 +52,7 @@ class DDPM(BaseAlgorithm):
         self.save_model_epoch = save_model_epoch
         self.name = 'ddpm'
     
-    def update(self, data: torch.Tensor) -> None:
+    def update(self, data, cat_cols, cat_dict) -> None:
         batch_size = data.shape[0]
 
         t = torch.randint(0, self.n_steps, size=(batch_size // 2,)).to(self.device)
@@ -67,8 +67,15 @@ class DDPM(BaseAlgorithm):
 
         xt = data * a + epsilon * aml
         output = self.diffuser(xt, t.squeeze(-1))
-        loss = (epsilon - output).square().mean()
 
+        loss = (epsilon - output).square()
+        cat_lens = [len(cat_dict[col]) for col in cat_cols]
+        start = -sum(cat_lens)
+        for i, col in enumerate(cat_cols):
+            loss[:, start : start+cat_lens[i]] /= cat_lens[i]
+            start += cat_lens[i]
+        loss = loss.mean()
+        
         self.diff_optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.diffuser.parameters(), 1.)		
@@ -87,13 +94,13 @@ class DDPM(BaseAlgorithm):
         sample = mean + sigma_t * z
         return sample
 
-    def generate_wo_guidance(self, batch_size=400, extra_step=100, n_samples=0):            
+    def generate_wo_guidance(self, batch_size=400, n_samples=0):            
         x = np.random.randn(batch_size, self.input_dim)
 
         for start in range(0, n_samples, batch_size):
             end = min(start+batch_size, batch_size)
             batch_x = torch.tensor(x[start:end], dtype=torch.float32).to(self.device)
-            for i in range(self.n_steps-1, -extra_step, -1):
+            for i in range(self.n_steps-1, -1):
                 t = max(i, 0)
                 batch_x = self.sample_one_step(batch_x, t)
             x[start:end] = batch_x.cpu().detach().numpy()

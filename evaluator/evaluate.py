@@ -76,15 +76,17 @@ if __name__ == '__main__':
     pretrain = pd.read_csv(f'{args.log_path}/results/data/synthetic_wo_guidance.csv', index_col=None)
     finetune = pd.read_csv(f'{args.log_path}/results/data/synthetic.csv', index_col=None)
     
+    columns = raw_full.columns
+    
     visual_correlation_row({
-        'Raw Data':raw_full,
-        'Fewshot Data':raw_fine,
-        'Pretrain Synthetic':pretrain,
-        'Finetune Synthetic':finetune,
+        'Raw Data':raw_full[columns],
+        'Fewshot Data':raw_fine[columns],
+        'Pretrain Synthetic':pretrain[columns],
+        'Finetune Synthetic':finetune[columns],
     }, path=f'{args.log_path}/results/figures/correlations.png', enable_labels=True)
     visual_distribution({
-        'Raw Data':raw_full,
-        'Fewshot Data':raw_fine,
-        'Pretrain Synthetic':pretrain,
-        'Finetune Synthetic':finetune,
+        'Raw Data':raw_full[columns],
+        'Fewshot Data':raw_fine[columns],
+        'Pretrain Synthetic':pretrain[columns],
+        'Finetune Synthetic':finetune[columns],
     }, path=f'{args.log_path}/results/figures/distributions.png', enable_labels=True)
