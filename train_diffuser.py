@@ -17,6 +17,7 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     
     train_data, columns=load_data(args.train_path, args.cat_cols)
+    train_data.set_normalizer(train_data.normalizer)
     valid_data, _ = load_data(args.valid_path, args.cat_cols)
     valid_data.set_normalizer(train_data.normalizer)
     with open(os.path.join(args.model_path, 'normalizer.pickle'), 'wb') as f:

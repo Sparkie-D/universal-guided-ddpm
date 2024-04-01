@@ -16,9 +16,9 @@ if __name__ == "__main__":
         torch.cuda.manual_seed_all(args.seed)
     np.random.seed(args.seed)
     
-    with open(f'logs/pretrain/column#{args.n_cols}/models/ddpm.pickle', 'rb') as f:
+    with open(f'{args.pretrain_path}/models/ddpm.pickle', 'rb') as f:
         diffuser=pickle.load(f)
-    with open(f'logs/pretrain/column#{args.n_cols}/models/normalizer.pickle', 'rb') as f:
+    with open(f'{args.pretrain_path}/models/normalizer.pickle', 'rb') as f:
         normalizer=pickle.load(f)
     
     # with open('logs/fewshot010/models/discriminator.pickle', 'rb') as f:
@@ -35,13 +35,15 @@ if __name__ == "__main__":
                                          x_cat=gen_raw[:, len(normalizer.num_cols):],
                                          concat=True)
     neg_data_df = pd.DataFrame(data=neg_data_np,columns=normalizer.num_cols+normalizer.cat_cols)
+    neg_data = DiffusionDataset(neg_data_df, pos_data.normalizer)
+    neg_data.set_normalizer(pos_data.normalizer)
     trainer = Trainer(
         model=discriminator(input_dim=pos_data.input_dim, 
                             hidden_dims=4,
                             device=device),
         # model=model,
         pos_data=pos_data,
-        neg_data=DiffusionDataset(neg_data_df, pos_data.normalizer),
+        neg_data=neg_data,
         valid_data=valid_data,
         logger=logger,
         device=device,

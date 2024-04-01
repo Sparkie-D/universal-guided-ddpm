@@ -67,16 +67,19 @@ if __name__ == '__main__':
     parser.add_argument('--id', type=str, default='010')
     parser.add_argument('--n_cols', type=str, default='2')
     parser.add_argument('--log_name', type=str, default=None)
+    parser.add_argument('--data_path', type=str, default=None)
+    parser.add_argument('--pretrain_path', type=str, default=None)
+    
     args = parser.parse_args()
     args.log_path = os.path.join('logs', args.log_name)
     
-    raw_full = pd.read_csv(f'../Datasets/diffusion/pksim_{args.n_cols}/{args.id}/fewshot_all.csv', index_col=None)
-    raw_fine = pd.read_csv(f'../Datasets/diffusion/pksim_{args.n_cols}/{args.id}/fewshot.csv', index_col=None)
+    raw_full = pd.read_csv(f'{args.data_path}/fewshot_all.csv', index_col=None)
+    raw_fine = pd.read_csv(f'{args.data_path}/fewshot.csv', index_col=None)
     
     pretrain = pd.read_csv(f'{args.log_path}/results/data/synthetic_wo_guidance.csv', index_col=None)
     finetune = pd.read_csv(f'{args.log_path}/results/data/synthetic.csv', index_col=None)
     
-    columns = raw_full.columns
+    columns = finetune.columns
     
     visual_correlation_row({
         'Raw Data':raw_full[columns],

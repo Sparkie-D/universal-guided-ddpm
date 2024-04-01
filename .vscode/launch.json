@@ -12,16 +12,18 @@
             "console": "integratedTerminal",
             "python":"/home/ubuntu/.conda/envs/diffusion/bin/python",
             "args": [
-                "--train_path", "../Datasets/diffusion/pksim_all/pretrain.csv",
-                "--valid_path", "../Datasets/diffusion/pksim_all/pretrain.csv",
+                "--train_path", "../Datasets/diffusion/tabddpm/adult/pretrain.csv",
+                "--valid_path", "../Datasets/diffusion/tabddpm/adult/pretrain.csv",
                 // "--train_path", "../Datasets/diffusion/pksim_all/3050/fewshot.csv",
                 // "--valid_path", "../Datasets/diffusion/pksim_all/3050/fewshot.csv",
                 "--num_epoch", "100",
                 "--log_name", "debug",
                 "--forward_weight", "1",
-                "--backward_step", "5", 
-                "--self_recurrent_step", "3",
-                "--id", "3050",
+                "--backward_step", "1", 
+                "--self_recurrent_step", "1",
+                "--n_samples", "32",
+                "--batch_size", "32",
+                "--cat_cols", "cat_0", "cat_1", "cat_2", "cat_3", "cat_4", "cat_5", "cat_6", "cat_7",
             ]
         }
     ]

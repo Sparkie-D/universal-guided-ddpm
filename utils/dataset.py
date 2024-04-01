@@ -12,7 +12,8 @@ class DiffusionDataset:
                  data:pd.DataFrame, 
                  normalizer:MinMaxNormalizer) -> None:
         self.data = data
-        self.set_normalizer(normalizer)
+        self.normalizer = normalizer
+        # self.set_normalizer(normalizer) # manually set before using
         
     def __getitem__(self, i):
         return self.data_normed[i]

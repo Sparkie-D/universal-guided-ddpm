@@ -13,11 +13,11 @@ if __name__ == "__main__":
 
     device='cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu'
 
-    with open(f'logs/pretrain/column#{args.n_cols}/models/ddpm.pickle', 'rb') as f:
+    with open(f'{args.pretrain_path}/models/ddpm.pickle', 'rb') as f:
         diffuser=pickle.load(f)
-    with open(f'logs/pretrain/column#{args.n_cols}/models/normalizer.pickle', 'rb') as f:
+    with open(f'{args.pretrain_path}/models/normalizer.pickle', 'rb') as f:
         normalizer=pickle.load(f)    
-    with open(f'logs/fewshot/column#{args.n_cols}_id#{args.id}/models/discriminator.pickle', 'rb') as f:
+    with open(f'{args.fewshot_path}/models/discriminator.pickle', 'rb') as f:
         disc=pickle.load(f)
         
     gen_data = diffuser.universal_guided_sample(batch_size=args.batch_size, 
@@ -31,12 +31,16 @@ if __name__ == "__main__":
     generated = pd.DataFrame(data=normalizer.unnormalize(gen_num, gen_cat, concat=True),
                              columns=normalizer.num_cols+normalizer.cat_cols)
 
+    # generated.drop(columns=[col for col in generated.columns if col.startswith('organ_lumen')], inplace=True)
     generated.to_csv(os.path.join(args.save_data_path, 'synthetic.csv'), index=None)
     
     if not os.path.exists(os.path.join(args.save_data_path, 'synthetic_wo_guidance.csv')):
+        gen_data = diffuser.generate_wo_guidance(batch_size=args.batch_size,
+                                                 n_samples=args.n_samples)
         gen_num = gen_data[:, :len(normalizer.num_cols)]
         gen_cat = gen_data[:, len(normalizer.num_cols):]
         generated = pd.DataFrame(data=normalizer.unnormalize(gen_num, gen_cat, concat=True),
                                 columns=normalizer.num_cols+normalizer.cat_cols)
-
+        
+        # generated.drop(columns=[col for col in generated.columns if col.startswith('organ_lumen')], inplace=True)
         generated.to_csv(os.path.join(args.save_data_path, 'synthetic_wo_guidance.csv'), index=None)

@@ -27,7 +27,8 @@ class discriminator(nn.Module):
     def _init_net(self):
         for layer in self.modules():
             if isinstance(layer, torch.nn.Linear):
-                nn.init.orthogonal_(layer.weight)
+                # nn.init.orthogonal_(layer.weight)
+                nn.init.kaiming_normal_(layer.weight)
 
     def forward(self, x, clip=True):
         x = torch.tanh(self.linear1(x).clip(-10, 10) if clip else self.linear1(x))

@@ -94,15 +94,17 @@ class DDPM(BaseAlgorithm):
         sample = mean + sigma_t * z
         return sample
 
-    def generate_wo_guidance(self, batch_size=400, n_samples=0):            
+    def generate_wo_guidance(self, batch_size=400, n_samples=0, extra_step=100):            
         x = np.random.randn(batch_size, self.input_dim)
 
         for start in range(0, n_samples, batch_size):
             end = min(start+batch_size, batch_size)
             batch_x = torch.tensor(x[start:end], dtype=torch.float32).to(self.device)
-            for i in range(self.n_steps-1, -1):
+            # for i in range(self.n_steps-1, -1):
+            for i in range(self.n_steps-1, -extra_step, -1):
                 t = max(i, 0)
                 batch_x = self.sample_one_step(batch_x, t)
+
             x[start:end] = batch_x.cpu().detach().numpy()
         
         return x

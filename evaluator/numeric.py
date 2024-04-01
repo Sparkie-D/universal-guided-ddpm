@@ -3,6 +3,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
+import pickle
 
 from scipy.spatial.distance import cosine
 from scipy.stats import wasserstein_distance, ks_2samp, entropy, kurtosis
@@ -30,7 +31,7 @@ def numeric_difference(data1, data2, save_path):
               'KS statistics': {},
               'Cos similarity': {},
               # diversity
-              'Simpson diversity': {},
+            #   'Simpson diversity': {},
               'Shannon diveristy': {},
             }
     for col in data2.columns:
@@ -40,7 +41,7 @@ def numeric_difference(data1, data2, save_path):
         result['Cos similarity'][col] = 1 - cosine(data1[col].values, data2[col].values)
         
         # diversity
-        result['Simpson diversity'][col] = np.sum(np.square(data2[col].values / np.sum(data2[col].values)))
+        # result['Simpson diversity'][col] = np.sum(np.square(data2[col].values / np.sum(data2[col].values)))
         result['Shannon diveristy'][col] = sample_diversity(data2[col].values)
 
 
@@ -55,18 +56,34 @@ def numeric_difference(data1, data2, save_path):
         
     return json.dumps(result, sort_keys=False, indent=4) # print this directly
 
+def normalize_num(data, normalizr):
+    num_data, cat_data = data[normalizer.num_cols].values, data[normalizer.cat_cols].values
+    num_normed, cat_normed = normalizer.normalize(num_data, cat_data)
+    data_normed = np.concatenate([num_normed, cat_data], axis=-1) 
+    return pd.DataFrame(data_normed, columns=normalizer.num_cols+normalizer.cat_cols)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', type=str, default='010')
     parser.add_argument('--n_cols', type=str, default='2')
     parser.add_argument('--log_name', type=str, default=None)
+    parser.add_argument('--data_path', type=str, default=None)
+    parser.add_argument('--pretrain_path', type=str, default=None)
+    
     args = parser.parse_args()
     args.log_path = os.path.join('logs/', args.log_name, 'results', 'data')
     
-    raw_full = pd.read_csv(f'../Datasets/diffusion/pksim_{args.n_cols}/{args.id}/fewshot_all.csv', index_col=None)
-    pretrain = pd.read_csv(f'../Datasets/diffusion/pksim_{args.n_cols}/{args.id}/fewshot.csv')
+    with open(f'{args.pretrain_path}/models/normalizer.pickle', 'rb') as f:
+        normalizer=pickle.load(f)   
+        
+    raw_full = pd.read_csv(f'{args.data_path}/fewshot_all.csv', index_col=None)
+    pretrain = pd.read_csv(f'{args.data_path}/fewshot.csv', index_col=None)
     fewshot = pd.read_csv(f'{args.log_path}/synthetic.csv', index_col=None)
     
-    numeric_difference(raw_full, pretrain, os.path.join(args.log_path, 'credits_pretrain.json'))
-    numeric_difference(raw_full, fewshot, os.path.join(args.log_path, 'credits_fewshot.json'))
+    raw_full = normalize_num(raw_full, normalizer)
+    pretrain = normalize_num(pretrain, normalizer)
+    fewshot = normalize_num(fewshot, normalizer)
+    
+    columns = fewshot.columns
+    numeric_difference(raw_full[columns], pretrain[columns], os.path.join(args.log_path, 'credits_pretrain.json'))
+    numeric_difference(raw_full[columns], fewshot[columns], os.path.join(args.log_path, 'credits_fewshot.json'))

@@ -9,7 +9,7 @@ class MinMaxNormalizer:
     def __init__(self, data, cat_cols):
         self.num_cols = [col for col in data.columns if col not in cat_cols]
         self.cat_cols = cat_cols
-        self.cat_dict = {cat:np.unique(data[cat].values) for cat in self.cat_cols}    
+        self.cat_dict = {cat:data[cat].unique() for cat in self.cat_cols}    
         self.cat_len = sum([len(self.cat_dict[cat]) for cat in cat_cols])
         self.maxs = data[self.num_cols].max(axis=0).values
         self.mins = data[self.num_cols].min(axis=0).values
