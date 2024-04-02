@@ -65,7 +65,7 @@ def normalize_num(data, normalizr):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', type=str, default='010')
-    parser.add_argument('--n_cols', type=str, default='2')
+    parser.add_argument('--cat_cols', nargs='*')
     parser.add_argument('--log_name', type=str, default=None)
     parser.add_argument('--data_path', type=str, default=None)
     parser.add_argument('--pretrain_path', type=str, default=None)
@@ -84,6 +84,6 @@ if __name__ == '__main__':
     pretrain = normalize_num(pretrain, normalizer)
     fewshot = normalize_num(fewshot, normalizer)
     
-    columns = fewshot.columns
+    columns = [col for col in fewshot.columns if col not in args.cat_cols]
     numeric_difference(raw_full[columns], pretrain[columns], os.path.join(args.log_path, 'credits_pretrain.json'))
     numeric_difference(raw_full[columns], fewshot[columns], os.path.join(args.log_path, 'credits_fewshot.json'))

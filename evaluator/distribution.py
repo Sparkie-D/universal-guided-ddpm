@@ -65,7 +65,7 @@ def visual_distribution(data:dict, savefig=True, path='distributions', enable_la
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', type=str, default='010')
-    parser.add_argument('--n_cols', type=str, default='2')
+    parser.add_argument('--cat_cols', nargs='*')
     parser.add_argument('--log_name', type=str, default=None)
     parser.add_argument('--data_path', type=str, default=None)
     parser.add_argument('--pretrain_path', type=str, default=None)
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     pretrain = pd.read_csv(f'{args.log_path}/results/data/synthetic_wo_guidance.csv', index_col=None)
     finetune = pd.read_csv(f'{args.log_path}/results/data/synthetic.csv', index_col=None)
     
-    columns = finetune.columns
+    columns = [col for col in finetune.columns if col not in args.cat_cols]
     
     visual_correlation_row({
         'Raw Data':raw_full[columns],
